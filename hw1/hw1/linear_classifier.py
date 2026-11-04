@@ -21,10 +21,9 @@ class LinearClassifier(object):
         #  Create weights tensor of appropriate dimensions
         #  Initialize it from a normal dist with zero mean and the given std.
 
-        self.weights = None
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
+        self.weights = torch.randn(n_features, n_classes) * weight_std
+
+    
 
     def predict(self, x: Tensor):
         """
@@ -38,17 +37,14 @@ class LinearClassifier(object):
                 per sample.
         """
 
-        # TODO:
-        #  Implement linear prediction.
-        #  Calculate the score for each class using the weights and
-        #  return the class y_pred with the highest score.
-
-        y_pred, class_scores = None, None
+       
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        class_scores = x @ self.weights               
+        y_pred = torch.argmax(class_scores, dim=1)    
         # ========================
 
         return y_pred, class_scores
+
 
     @staticmethod
     def evaluate_accuracy(y: Tensor, y_pred: Tensor):
@@ -60,14 +56,9 @@ class LinearClassifier(object):
         :return: The accuracy in percent.
         """
 
-        # TODO:
-        #  calculate accuracy of prediction.
-        #  Do not use an explicit loop.
-
-        acc = None
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
+        
+        acc = (y==y_pred).float().mean().item()
+        
 
         return acc * 100
 
@@ -102,7 +93,33 @@ class LinearClassifier(object):
             #     using the weight_decay parameter.
 
             # ====== YOUR CODE: ======
-            raise NotImplementedError()
+            # ---- training pass: compute loss, update weights ----
+            for x_batch, y_batch in dl_train:
+                y_prediction, x_scores = self.predict(x_batch)
+                hinge_loss = loss_fn(x_batch, y_batch, x_scores, y_prediction)
+                reg_loss = (weight_decay / 2) * (self.weights ** 2).sum()
+                average_loss += (hinge_loss + reg_loss).item()
+
+                total_correct += (y_prediction == y_batch).sum().item()
+
+                gradients = loss_fn.grad() + weight_decay * self.weights
+                self.weights = self.weights - learn_rate * gradients
+
+            train_res.loss.append(average_loss / len(dl_train))
+            train_res.accuracy.append(total_correct / len(dl_train.sampler) * 100)
+
+           
+            total_correct = 0
+            average_loss = 0
+            for x_batch, y_batch in dl_valid:
+                y_prediction, x_scores = self.predict(x_batch)
+                hinge_loss = loss_fn(x_batch, y_batch, x_scores, y_prediction)
+                reg_loss = (weight_decay / 2) * (self.weights ** 2).sum()
+                average_loss += (hinge_loss + reg_loss).item()
+                total_correct += (y_prediction == y_batch).sum().item()
+
+            valid_res.loss.append(average_loss / len(dl_valid))
+            valid_res.accuracy.append(total_correct / len(dl_valid.sampler) * 100)
             # ========================
             print(".", end="")
 
@@ -123,20 +140,18 @@ class LinearClassifier(object):
         #  The output shape should be (n_classes, C, H, W).
 
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        W = self.weights
+        if has_bias:
+            #slicee the bias
+            W = W[1:]
+        w_images = W.T.reshape(self.n_classes, *img_shape)
         # ========================
 
         return w_images
 
 
 def hyperparams():
-    hp = dict(weight_std=0.0, learn_rate=0.0, weight_decay=0.0)
-
-    # TODO:
-    #  Manually tune the hyperparameters to get the training accuracy test
-    #  to pass.
-    # ====== YOUR CODE: ======
-    raise NotImplementedError()
-    # ========================
+    hp = dict(weight_std=0.0001, learn_rate=0.05, weight_decay=0.002)
+    
 
     return hp

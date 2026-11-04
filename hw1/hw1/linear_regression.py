@@ -30,10 +30,8 @@ class LinearRegressor(BaseEstimator, RegressorMixin):
 
         # TODO: Calculate the model prediction, y_pred
 
-        y_pred = None
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
+        y_pred = X@self.weights_ 
+        
 
         return y_pred
 
@@ -50,10 +48,12 @@ class LinearRegressor(BaseEstimator, RegressorMixin):
         #  Use only numpy functions. Don't forget regularization!
 
         w_opt = None
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
-
+        N=y.shape[0]
+        I_of_lamda=N*self.reg_lambda*np.eye(X.shape[1]) 
+        I_of_lamda[0,0]=0
+        A = X.T@X + I_of_lamda
+        b =X.T@y
+        w_opt=np.linalg.solve(A, b)
         self.weights_ = w_opt
         return self
 
@@ -76,9 +76,13 @@ def fit_predict_dataframe(
     :return: A vector of predictions, y_pred.
     """
     # TODO: Implement according to the docstring description.
-    # ====== YOUR CODE: ======
-    raise NotImplementedError()
-    # ========================
+    y_col = df[target_name]
+    if feature_names:
+        relevant_X = df[feature_names] 
+    else:
+        relevant_X=df.drop(columns=[target_name])   
+    
+    y_pred= model.fit_predict(relevant_X,y_col)
     return y_pred
 
 
@@ -97,11 +101,9 @@ class BiasTrickTransformer(BaseEstimator, TransformerMixin):
         # TODO:
         #  Add bias term to X as the first feature.
         #  See np.hstack().
-
-        xb = None
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
+        ones = np.ones((X.shape[0], 1))
+        xb = np.hstack((ones,X))
+       
 
         return xb
 
@@ -116,9 +118,7 @@ class BostonFeaturesTransformer(BaseEstimator, TransformerMixin):
 
         # TODO: Your custom initialization, if needed
         # Add any hyperparameters you need and save them as above
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
+       
 
     def fit(self, X, y=None):
         return self
@@ -129,19 +129,20 @@ class BostonFeaturesTransformer(BaseEstimator, TransformerMixin):
         :param X: Matrix of shape (n_samples, n_features_).
         :returns: Matrix of shape (n_samples, n_output_features_).
         """
-        X = check_array(X)
+        X = check_array(X, copy=True)
 
         # TODO:
         #  Transform the features of X into new features in X_transformed
         #  Note: You CAN count on the order of features in the Boston dataset
         #  (this class is "Boston-specific"). For example X[:,1] is the second
         #  feature ('ZN').
-
-        X_transformed = None
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
-
+        featurs = X[:, 1:]  
+        featurs[:, [0, 12]] = np.log(featurs[:, [0, 12]])
+        featurs = np.delete(featurs, 3, axis=1)    
+        poly_trans = PolynomialFeatures(degree=self.degree, include_bias=False)
+        featurs = poly_trans.fit_transform(featurs)
+        X_transformed=np.hstack((X[:,[0]],featurs))
+        
         return X_transformed
 
 
@@ -162,9 +163,24 @@ def top_correlated_features(df: DataFrame, target_feature, n=5):
 
     # TODO: Calculate correlations with target and sort features by it
 
-    # ====== YOUR CODE: ======
-    raise NotImplementedError()
-    # ========================
+    y_vec = df[target_feature]
+    y_mean = y_vec.mean()
+    X = df.drop(columns=[target_feature])
+    x_mean = X.mean()
+
+    #xi-muex
+    Xc = X - x_mean
+    #yi0y
+    yc = y_vec - y_mean
+
+    numerator = Xc.mul(yc, axis=0).sum()
+    denominator = np.sqrt((Xc ** 2).sum()) * np.sqrt((yc ** 2).sum())
+    corr = numerator / denominator
+
+    # Sort by absolute correlation, strongest first, keep top n
+    order = corr.abs().sort_values(ascending=False).index[:n]
+    top_n_features = list(order)
+    top_n_corr = corr[order].values
 
     return top_n_features, top_n_corr
 
@@ -177,11 +193,9 @@ def mse_score(y: np.ndarray, y_pred: np.ndarray):
     :return: MSE score.
     """
 
-    # TODO: Implement MSE using numpy.
-    # ====== YOUR CODE: ======
-    raise NotImplementedError()
-    # ========================
-    return mse
+    mse = ((y-y_pred)*(y-y_pred)).sum()
+    
+    return mse/y.shape[0]
 
 
 def r2_score(y: np.ndarray, y_pred: np.ndarray):
@@ -194,8 +208,11 @@ def r2_score(y: np.ndarray, y_pred: np.ndarray):
 
     # TODO: Implement R^2 using numpy.
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
-    # ========================
+    residuals_sum = ((y-y_pred)*(y-y_pred)).sum()
+    y_averges = y.mean()
+    yi_minus_mean_sum= ((y-y_averges)*(y-y_averges)).sum()
+    r2 = 1- residuals_sum/yi_minus_mean_sum
+       
     return r2
 
 
@@ -227,7 +244,28 @@ def cv_best_hyperparams(
     #  - You can use MSE or R^2 as a score.
 
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+  
+    from sklearn.model_selection import GridSearchCV, KFold
+
+   
+    param_grid = {
+        "bostonfeaturestransformer__degree": list(degree_range),
+        "linearregressor__reg_lambda": list(lambda_range),
+    }
+
+   
+    kf = KFold(n_splits=k_folds, shuffle=True, random_state=42)
+    search = GridSearchCV(
+        model,
+        param_grid,
+        cv=kf,
+        scoring="neg_mean_squared_error",
+    )
+
+    
+    search.fit(X, y)
+
+    best_params = search.best_params_
     # ========================
 
     return best_params

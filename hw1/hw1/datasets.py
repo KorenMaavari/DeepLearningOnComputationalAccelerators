@@ -17,10 +17,9 @@ def random_labelled_image(
     :param dtype: Data type of the returned image tensor.
     :return: A tuple containing the generated image tensor and it's label.
     """
-    # TODO:
-    #  Implement according to the docstring description.
-    # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    image = torch.randint(low, high, shape ,dtype=dtype)
+    label = torch.randint(0, num_classes, (1,), dtype=int).item()
+
     # ========================
     return image, label
 
@@ -32,21 +31,13 @@ def torch_temporary_seed(seed: int):
     number generator state back to its previous state.
     :param seed: The temporary seed to set.
     """
-    # TODO:
-    #  Implement this context manager as described.
-    #  See torch.random.get/set_rng_state(), torch.random.manual_seed().
-    # ====== YOUR CODE: ======
-    raise NotImplementedError()
-    # ========================
+   
+    previous_generator = torch.random.get_rng_state()
     try:
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
+        torch.random.manual_seed(seed)
         yield
     finally:
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
+        torch.random.set_rng_state(previous_generator)
 
 
 class RandomImageDataset(Dataset):
@@ -74,24 +65,28 @@ class RandomImageDataset(Dataset):
         :return: A tuple (sample, label) containing the image and its class label.
         Raises a ValueError if index is out of range.
         """
-
         # TODO:
         #  Create a random image tensor and return it.
         #  Make sure to always return the same image for the
         #  same index (make it deterministic per index), but don't mess-up
         #  the random state outside this method.
         #  Raise a ValueError if the index is out of range.
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
+        if index  not in range(0,self.num_samples):
+            raise ValueError
+        
+        with torch_temporary_seed(index):
+             image , label = random_labelled_image(self.image_dim , self. num_classes) 
+
+        return image,label
+             
+
+
 
     def __len__(self):
         """
         :return: Number of samples in this dataset.
         """
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
+        return self.num_samples
 
 
 class ImageStreamDataset(IterableDataset):
@@ -118,10 +113,10 @@ class ImageStreamDataset(IterableDataset):
         # TODO:
         #  Yield tuples to produce an iterator over random images and labels.
         #  The iterator should produce an infinite stream of data.
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
-
+       
+        while True:
+            image,label = random_labelled_image(self.image_dim,self.num_classes)
+            yield  (image,label )
 
 class SubsetDataset(Dataset):
     """
@@ -146,11 +141,10 @@ class SubsetDataset(Dataset):
         # TODO:
         #  Return the item at index + offset from the source dataset.
         #  Raise an IndexError if index is out of bounds.
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
+        if index <0 or index>=self.subset_len:
+            raise IndexError
+        return self.source_dataset[index+self.offset]
 
     def __len__(self):
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
+        return self.subset_len

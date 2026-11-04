@@ -24,9 +24,23 @@ class FirstLastSampler(Sampler):
         # Implement the logic required for this sampler.
         # If the length of the data source is N, you should return indices in a
         # first-last ordering, i.e. [0, N-1, 1, N-2, ...].
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
+        flag_is_start=1
+        i =0
+        elementscounter=0 
+        N= len(self.data_source)
+        while True:
+            if elementscounter >=N :
+                break
+            if flag_is_start:
+                next_element = i
+                flag_is_start=0
+                elementscounter=elementscounter+1
+            else:
+                next_element = (N-i-1)
+                flag_is_start =1
+                i = i+1      
+                elementscounter=elementscounter+1
+            yield next_element
 
     def __len__(self):
         return len(self.data_source)
@@ -57,8 +71,21 @@ def create_train_validation_loaders(
     #     from the dataset.
     #  Hint: you can specify a Sampler class for the `DataLoader` instance
     #  you create.
-    # ====== YOUR CODE: ======
-    raise NotImplementedError()
-    # ========================
+    data_size = len(dataset)
+    n_valid = int(data_size * validation_ratio)
 
+
+    shuffled_indices = torch.randperm(data_size).tolist()
+    valid_indices = shuffled_indices[:n_valid]
+    train_indices = shuffled_indices[n_valid:]
+
+    train_sampler = torch.utils.data.SubsetRandomSampler(train_indices)
+    valid_sampler = torch.utils.data.SubsetRandomSampler(valid_indices)
+
+    dl_train = torch.utils.data.DataLoader(
+        dataset, batch_size=batch_size, sampler=train_sampler, num_workers=num_workers
+    )
+    dl_valid = torch.utils.data.DataLoader(
+        dataset, batch_size=batch_size, sampler=valid_sampler, num_workers=num_workers
+    )
     return dl_train, dl_valid

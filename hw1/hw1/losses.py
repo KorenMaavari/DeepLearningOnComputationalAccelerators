@@ -49,15 +49,22 @@ class SVMHingeLoss(ClassifierLoss):
         #    implementation (zero explicit loops).
         #    Hint: Create a matrix M where M[i,j] is the margin-loss
         #    for sample i and class j (i.e. s_j - s_{y_i} + delta).
-
-        loss = None
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
+        #get N
+        N = x_scores.shape[0]
+        # create  N,1 tensor for the correct y per xi
+        correct_scores = x_scores[torch.arange(N), y]
+        #matrix M where we get N,C - N,1 with bradocasting (each col C get a minus of the same entery in correct scores y.)
+        M = x_scores - correct_scores.unsqueeze(1) + self.delta
+        #make the y enteries zero.
+        M[torch.arange(N), y] = 0
+        #min zero 
+        M = torch.clamp(M, min=0)
+        loss = M.sum() / N
+        
 
         # TODO: Save what you need for gradient calculation in self.grad_ctx
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        self.grad_ctx = [M,x,y]
         # ========================
 
         return loss
@@ -74,8 +81,13 @@ class SVMHingeLoss(ClassifierLoss):
         #  it create a matrix G such that X^T * G is the gradient.
 
         grad = None
-        # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
+        M = self.grad_ctx[0]
+        x=self.grad_ctx[1]
+        y=self.grad_ctx[2]
+        N= x.shape[0]
+        G = (M>0).float()
+        indicator_sums = G.sum(dim =1)
+        G[torch.arange(N),y] = -indicator_sums
+        grad = x.T @ G/N
 
         return grad
