@@ -34,7 +34,7 @@ def torch_temporary_seed(seed: int):
    
     previous_generator = torch.random.get_rng_state()
     try:
-        torch.random.manual_seed(seed)
+        torch.random.default_generator.manual_seed(int(seed))
         yield
     finally:
         torch.random.set_rng_state(previous_generator)

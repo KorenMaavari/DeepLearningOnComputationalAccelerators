@@ -53,7 +53,10 @@ class LinearRegressor(BaseEstimator, RegressorMixin):
         I_of_lamda[0,0]=0
         A = X.T@X + I_of_lamda
         b =X.T@y
-        w_opt=np.linalg.solve(A, b)
+        if self.reg_lambda:
+            w_opt=np.linalg.solve(A, b)
+        else:
+            w_opt=np.linalg.lstsq(X, y, rcond=None)[0]
         self.weights_ = w_opt
         return self
 
@@ -77,7 +80,7 @@ def fit_predict_dataframe(
     """
     # TODO: Implement according to the docstring description.
     y_col = df[target_name]
-    if feature_names:
+    if feature_names is not None:
         relevant_X = df[feature_names] 
     else:
         relevant_X=df.drop(columns=[target_name])   
@@ -129,19 +132,19 @@ class BostonFeaturesTransformer(BaseEstimator, TransformerMixin):
         :param X: Matrix of shape (n_samples, n_features_).
         :returns: Matrix of shape (n_samples, n_output_features_).
         """
-        X = check_array(X, copy=True)
+        X = check_array(X, copy=True, dtype=float)
 
         # TODO:
         #  Transform the features of X into new features in X_transformed
         #  Note: You CAN count on the order of features in the Boston dataset
         #  (this class is "Boston-specific"). For example X[:,1] is the second
         #  feature ('ZN').
-        featurs = X[:, 1:]  
+        featurs = X[:, -13:]  
         featurs[:, [0, 12]] = np.log(featurs[:, [0, 12]])
         featurs = np.delete(featurs, 3, axis=1)    
         poly_trans = PolynomialFeatures(degree=self.degree, include_bias=False)
         featurs = poly_trans.fit_transform(featurs)
-        X_transformed=np.hstack((X[:,[0]],featurs))
+        X_transformed=np.hstack((X[:,:-13],featurs))
         
         return X_transformed
 
@@ -164,18 +167,8 @@ def top_correlated_features(df: DataFrame, target_feature, n=5):
     # TODO: Calculate correlations with target and sort features by it
 
     y_vec = df[target_feature]
-    y_mean = y_vec.mean()
     X = df.drop(columns=[target_feature])
-    x_mean = X.mean()
-
-    #xi-muex
-    Xc = X - x_mean
-    #yi0y
-    yc = y_vec - y_mean
-
-    numerator = Xc.mul(yc, axis=0).sum()
-    denominator = np.sqrt((Xc ** 2).sum()) * np.sqrt((yc ** 2).sum())
-    corr = numerator / denominator
+    corr = X.corrwith(y_vec)
 
     # Sort by absolute correlation, strongest first, keep top n
     order = corr.abs().sort_values(ascending=False).index[:n]
@@ -193,6 +186,7 @@ def mse_score(y: np.ndarray, y_pred: np.ndarray):
     :return: MSE score.
     """
 
+    y = y.astype(float, copy=False)
     mse = ((y-y_pred)*(y-y_pred)).sum()
     
     return mse/y.shape[0]
@@ -208,9 +202,14 @@ def r2_score(y: np.ndarray, y_pred: np.ndarray):
 
     # TODO: Implement R^2 using numpy.
     # ====== YOUR CODE: ======
+    if y.size < 2:
+        return np.nan
+    y = y.astype(float, copy=False)
     residuals_sum = ((y-y_pred)*(y-y_pred)).sum()
     y_averges = y.mean()
     yi_minus_mean_sum= ((y-y_averges)*(y-y_averges)).sum()
+    if not yi_minus_mean_sum:
+        return float(residuals_sum == 0)
     r2 = 1- residuals_sum/yi_minus_mean_sum
        
     return r2
@@ -248,10 +247,15 @@ def cv_best_hyperparams(
     from sklearn.model_selection import GridSearchCV, KFold
 
    
-    param_grid = {
-        "bostonfeaturestransformer__degree": list(degree_range),
-        "linearregressor__reg_lambda": list(lambda_range),
+    param_ranges = {
+        "degree": list(degree_range),
+        "reg_lambda": list(lambda_range),
     }
+    param_grid = {}
+    for name in model.get_params():
+        param = name.rsplit("__", 1)[-1]
+        if param in param_ranges:
+            param_grid[name] = param_ranges[param]
 
    
     kf = KFold(n_splits=k_folds, shuffle=True, random_state=42)

@@ -58,8 +58,8 @@ class SVMHingeLoss(ClassifierLoss):
         #make the y enteries zero.
         M[torch.arange(N), y] = 0
         #min zero 
-        M = torch.clamp(M, min=0)
-        loss = M.sum() / N
+        M = torch.relu(M)
+        loss = M.sum().view(1) / N
         
 
         # TODO: Save what you need for gradient calculation in self.grad_ctx
@@ -85,7 +85,7 @@ class SVMHingeLoss(ClassifierLoss):
         x=self.grad_ctx[1]
         y=self.grad_ctx[2]
         N= x.shape[0]
-        G = (M>0).float()
+        G = (M>0).to(x)
         indicator_sums = G.sum(dim =1)
         G[torch.arange(N),y] = -indicator_sums
         grad = x.T @ G/N

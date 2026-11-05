@@ -15,11 +15,11 @@ part1_q1 = r"""
 to differentiate between dogs and cats, and our dataset is ordered so that the first half
 is dogs and the second half is cats, then choosing a training set that contains only dogs
 would not allow the model to generalize well to cats.
-If we shuffle the data first, then each split will be equally fine.
+Shuffling helps avoid this, but a split can still miss rare classes.
 There may also be cases where no shuffle will help at all. For example, if we are trying
-to classify 10 classes, but our data contains examples of only 8 classes and almost no
-examples of the 2 remaining classes, then no matter how we arrange the data, we won't be
-able to generalize well.
+to classify 10 classes, but our data contains many examples of 8 classes and almost no
+examples of the 2 remaining classes, we may not have enough examples to learn or evaluate
+those two classes reliably.
 
 2. **False!** It would cause leakage of the test data into the training process.
 Validation is a part of the training process, used for finding the right hyperparameters.
@@ -28,16 +28,12 @@ This process is not allowed to see anything regarding the test data.
 3. **True.** In each fold, the validation set was not used to train the model, so the
 model's performance on it is an estimate of how well it will perform on unseen data,
 i.e. of its generalization (test) loss. We average the validation performance over all
-the folds, and based on it we decide which hyperparameters will lead to the minimal
+the folds, and based on it we decide which hyperparameters have the lowest estimated
 generalization loss.
 
-4. **True.** It can help to overcome overfitting. When our model fits our training data
-too much, its ability to generalize is harmed. So if we have some amount of wrong labels,
-the model will be "forced" to be mistaken on some cases, and therefore it will be forced
-not to fit the training data too much, thus battling overfitting.
-In addition, by training on noisy labels and evaluating on clean data, we can validate how
-robust the model is: a robust model will still perform well, while a model that memorizes
-its training data will be hurt significantly.
+4. **True.** Train on noisy labels and on clean labels in otherwise identical runs.
+Evaluate both on the same clean held-out data. A small drop in performance indicates
+robustness to the level of label noise injected.
 
 """
 
@@ -46,11 +42,10 @@ part1_q2 = r"""
 
 **No!** He used his test set as a validation set.
 
-Although changing $\lambda$ is one of the right ways to fight overfitting (the bigger
-$\lambda$ is, the more we decrease overfitting, until we underfit), this process should be
+Although tuning $\lambda$ can help reduce overfitting, this process should be
 done on the validation data, not on the test data. If we choose $\lambda$ based on the
 performance on the test set, we have leakage of knowledge from the test data into the
-training process, which is forbidden.
+training process, which is forbidden. After tuning, evaluate once on a fresh test set.
 
 """
 
@@ -63,13 +58,13 @@ part2_q1 = r"""
 If we allow a negative margin $\Delta < 0$, the hinge loss will contain many more zeros:
 the term $\max\left(0, \Delta + \boldsymbol{w_j}^\top \boldsymbol{x_i} - \boldsymbol{w_{y_i}}^\top \boldsymbol{x_i}\right)$
 is zero even when a wrong class gets a **higher** score than the correct class, as long as it
-is higher by less than $|\Delta|$. So the SVM loss will be smaller, and intuitively we allow
+is higher by at most $|\Delta|$. So the SVM loss will be smaller, and intuitively we allow
 bad predictions with no punishment.
 
-In addition, because of the regularization term, the model will just go to $\boldsymbol{W} = 0$.
+In addition, with positive regularization, the unique minimizer is $\boldsymbol{W} = 0$.
 If all the weights are zero, all the scores are equal, so each hinge term is $\max(0, \Delta) = 0$,
 and the regularization term is also zero. So the total loss is $0$, which is the smallest it can be.
-This means the training will push the weights to zero, since nothing in the loss stops it.
+Any nonzero weight matrix incurs positive regularization loss.
 In the end, the model gives the same score to every class, so it doesn't learn anything and
 can't classify.
 
@@ -82,10 +77,12 @@ The model tries to learn which digit is in the image.
 In the weight images we can see the digits from 0 to 9 represented by the bright (green/yellow)
 highlights, so the model learns a kind of template for each digit. Some digits are more
 noticeable, like 0 or 3, while others are less clear, like 4 or 6.
+As a pixel gets brighter, positive weights increase a class's score and negative weights
+decrease it. The highest-scoring template wins.
 
-We can see that a 5 and a 4 were actually classified as 6, which is reasonable since their
-images don't seem that far away from each other. The same goes for a 7 that was classified as 9,
-since they look similar, and for a 9 that was classified as 4.
+The 5 classified as 6 has a loop at the bottom that can favor the 6 template. The 7
+classified as 9 has an extra left stroke near the top, resembling part of a 9's loop.
+The templates compare ink at fixed positions, so unusual strokes can favor another digit.
 
 """
 
@@ -93,8 +90,8 @@ part2_q3 = r"""
 **Your answer:**
 
 1. **Good.** Based on the training set loss graph, we can see that the loss goes down
-immediately and then stays almost the same until the end. So we can say that the learning
-rate is balanced, and the value we picked happens to be close to a good one.
+sharply at first and then decreases more slowly, with a few spikes. So the learning
+rate is good overall, though the spikes suggest it is on the high side.
     - If the learning rate were **too high**, we would see bigger oscillations after the big
     drop: the loss would jump up and down from epoch to epoch instead of settling, and it could
     even grow instead of going down.
@@ -105,7 +102,9 @@ rate is balanced, and the value we picked happens to be close to a good one.
 
 2. **Slightly overfitted.** Based on the accuracy graph, we can say that the model is slightly
 overfitted to the training set, because the training accuracy is higher than the validation
-accuracy. The gap between them is small, so it is only slightly overfitted.
+accuracy (93.6% vs. 90.6% in my run). The gap is modest, and the separate test
+accuracy is 88.9%. The graph shows validation accuracy, while test accuracy is reported
+separately.
 
 """
 
@@ -117,11 +116,11 @@ accuracy. The gap between them is small, so it is only slightly overfitted.
 part3_q1 = r"""
 **Your answer:**
 
-The ideal residual plot is one where the points are spread randomly around the zero line, with no pattern (no curve or trend), and the spread stays about the same for all values of $\hat{y}$. We can't expect all residuals to be exactly zero, because there is always some noise in the data. Also, if all the train residuals were zero, it would probably mean the model is overfitting. So what we want is small residuals around zero, and the test residuals should look similar to the train residuals.
+The ideal residual plot is one where the points are spread randomly around the zero line, with no pattern (no curve or trend), and the spread stays about the same for all values of $\hat{y}$. We can't expect all residuals to be exactly zero, because there can be noise in the data. Also, if all the train residuals were zero, it could indicate overfitting. So what we want is small residuals around zero, and the test residuals should look similar to the train residuals.
 
-In the final plot after CV, most of the dots are concentrated close to the zero line, and they are spread quite evenly above and below it without a clear pattern. The spread of the dots also stays about the same along the whole range of $\hat{y}$. The train and test dots overlap and are spread in a similar way, which means the model generalizes well and doesn't overfit. The dots are also much closer to zero than in the top-5 plot, so the model doesn't underfit either.
+In the final plot after CV, most of the dots are concentrated close to the zero line, on both sides. The train and test dots overlap, though the test MSE is higher (14.01 vs. 7.82), and the plot still has some large residuals. Most dots are closer to zero than in the top-5 plot, suggesting a better fit.
 
-In the top-5 plot, the dots are much more spread out and many of them are far from the zero line. We can also see a pattern: at low and high values of $\hat{y}$ the dots go down and curve away from zero (like an upside-down parabola), instead of staying around it. This means that a linear model with only these 5 features can't capture the non-linear relations in the data, so it underfits. After we added the non-linear features and chose the degree and $\lambda$ with CV, this curve mostly disappeared and the dots got much closer to zero.
+In the top-5 plot, the dots are much more spread out and many of them are far from the zero line. We can also see a pattern: at low and high values of $\hat{y}$ many dots fall below zero. The plot uses $\hat{y}-y$ despite its axis label. The systematic pattern suggests that the linear model with only these 5 features underfits. After we added the non-linear features and chose the degree and $\lambda$ with CV, the pattern was weaker and the dots got closer to zero.
 
 """
 
@@ -130,9 +129,9 @@ part3_q2 = r"""
 
 1. Yes, it is still a linear regression model. We can still write the prediction as $\hat{y} = \vec{w}^\top \vec{x} + b$, the only difference is that the features in $\vec{x}$ are now different (for example $x_1^2$, $x_1 x_2$, $\log x_1$). The model is linear in the parameters $\vec{w}$, and that's what makes it linear regression. It is not linear in the original features anymore, but the way we fit $\vec{w}$ (the closed-form solution) stays exactly the same.
 
-2. Yes. As we add non-linear features, the model will be able to capture broader and broader relations than just a simple linear model. To do this, we will need to choose the right features, so that their weighted sum will actually give us the non-linear function we are trying to capture. (Also, too many complicated features can lead to overfitting.)
+2. Only functions in the span of the chosen features and the constant can be represented exactly. As we add non-linear features, the model will be able to capture broader and broader relations than just a simple linear model. To do this, we will need to choose the right features, so that their weighted sum will actually give us the non-linear function we are trying to capture. (Also, too many complicated features can lead to overfitting.)
 
-3. In the new feature space (after adding the non-linear features), the decision boundary is still a hyperplane, because the classifier still computes $\vec{w}^\top \vec{x} + b$, just with the new features. Just like in linear regression, changing the features doesn't change the linear form of the model: the boundary $\vec{w}^\top \vec{x} + b = 0$ is still a linear equation in the new features, so in the new feature space it stays a hyperplane.
+3. In the new feature space (after adding the non-linear features), the decision boundary is still a hyperplane, because the classifier still computes $\vec{w}^\top \vec{x} + b$, just with the new features. Just like in linear regression, changing the features doesn't change the linear form of the model: the boundary $\vec{w}^\top \vec{x} + b = 0$ is still a linear equation in the new features, so in the new feature space it stays a hyperplane. In multiclass classification, $\vec{w}$ and $b$ are pairwise differences. In the original space the boundary can be curved. For example, the line $z_1+z_2=1$ becomes a circle when $z_i=x_i^2$.
 
 """
 
@@ -235,7 +234,9 @@ $$
 \mathbb{E}_{x}[|\hat{x}-x|] = \frac{\hat{x}^2}{2} + \frac{1}{2} - \hat{x} + \frac{\hat{x}^2}{2} = \hat{x}^2 - \hat{x} + \frac{1}{2}
 $$
 
-3. Plugging this into the loss we get:
+For $\hat{x}<0$ the expectation is $\frac12-\hat{x}$, and for $\hat{x}>1$ it is $\hat{x}-\frac12$, because the sign of $\hat{x}-x$ is constant on $[0,1]$.
+
+3. Plugging the polynomial into the loss we get:
 
 $$
 L_{\text{ED}} = 2\left(\hat{x}^2 - \hat{x} + \frac{1}{2}\right) = 2\hat{x}^2 - 2\hat{x} + 1

@@ -80,6 +80,7 @@ class LinearClassifier(object):
         for epoch_idx in range(max_epochs):
             total_correct = 0
             average_loss = 0
+            total_samples = 0
 
             # TODO:
             #  Implement model training loop.
@@ -98,28 +99,31 @@ class LinearClassifier(object):
                 y_prediction, x_scores = self.predict(x_batch)
                 hinge_loss = loss_fn(x_batch, y_batch, x_scores, y_prediction)
                 reg_loss = (weight_decay / 2) * (self.weights ** 2).sum()
-                average_loss += (hinge_loss + reg_loss).item()
+                total_samples += y_batch.numel()
+                average_loss += (hinge_loss + reg_loss).item() * y_batch.numel()
 
                 total_correct += (y_prediction == y_batch).sum().item()
 
                 gradients = loss_fn.grad() + weight_decay * self.weights
                 self.weights = self.weights - learn_rate * gradients
 
-            train_res.loss.append(average_loss / len(dl_train))
-            train_res.accuracy.append(total_correct / len(dl_train.sampler) * 100)
+            train_res.loss.append(average_loss / total_samples)
+            train_res.accuracy.append(total_correct / total_samples * 100)
 
            
             total_correct = 0
             average_loss = 0
+            total_samples = 0
             for x_batch, y_batch in dl_valid:
                 y_prediction, x_scores = self.predict(x_batch)
                 hinge_loss = loss_fn(x_batch, y_batch, x_scores, y_prediction)
                 reg_loss = (weight_decay / 2) * (self.weights ** 2).sum()
-                average_loss += (hinge_loss + reg_loss).item()
+                total_samples += y_batch.numel()
+                average_loss += (hinge_loss + reg_loss).item() * y_batch.numel()
                 total_correct += (y_prediction == y_batch).sum().item()
 
-            valid_res.loss.append(average_loss / len(dl_valid))
-            valid_res.accuracy.append(total_correct / len(dl_valid.sampler) * 100)
+            valid_res.loss.append(average_loss / total_samples)
+            valid_res.accuracy.append(total_correct / total_samples * 100)
             # ========================
             print(".", end="")
 
